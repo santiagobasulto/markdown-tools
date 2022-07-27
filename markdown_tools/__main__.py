@@ -1,10 +1,10 @@
-from requests import session
+import uuid
+import threading
+from pathlib import Path
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
 import boto3
 import click
-from pathlib import Path
-
-import threading
-from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from .uploaders import upload_relative_images
 
@@ -12,7 +12,6 @@ PRINT_LOCK = threading.Lock()
 
 
 def upload_s3(file, output, location, boto3_client, **uploader_kwargs):
-    # import ipdb;ipdb.set_trace()
     abs_output = output.format(filename=file.stem)
 
     absolute_path = file.with_name(abs_output)
@@ -20,6 +19,11 @@ def upload_s3(file, output, location, boto3_client, **uploader_kwargs):
         location_path = Path(location)
         assert location_path.exists()
         absolute_path = location_path / abs_output
+
+    s3_base_key = uploader_kwargs["s3_base_key"].format(
+        filename=file.stem,
+        parent_0=file.resolve().parents[0].stem,
+        random_hex=str(uuid.uuid4()).split("-")[0])
 
     result = upload_relative_images(
         file,
@@ -29,7 +33,7 @@ def upload_s3(file, output, location, boto3_client, **uploader_kwargs):
         **{
             "s3_client": boto3_client,
             "s3_bucket": uploader_kwargs["s3_bucket"],
-            "s3_relative_path": uploader_kwargs["s3_base_location"],
+            "s3_relative_path": s3_base_key,
             "s3_ACL": uploader_kwargs.get("s3_acl"),
             "s3_cloudfront_domain": uploader_kwargs.get("s3_cloudfront_domain"),
             "s3_cache_control": uploader_kwargs.get("s3_cache_control"),
@@ -40,7 +44,7 @@ def upload_s3(file, output, location, boto3_client, **uploader_kwargs):
 
 def process_s3(files, output, location, concurrency, verbose, **uploader_kwargs):
     # Required params
-    required_params = ["s3_bucket", "s3_base_location"]
+    required_params = ["s3_bucket", "s3_base_key"]
     assert all([uploader_kwargs.get(param) for param in required_params])
 
     optional_credential_kwargs = {
@@ -58,6 +62,8 @@ def process_s3(files, output, location, concurrency, verbose, **uploader_kwargs)
 
     boto3_session = boto3.Session(**session_kwargs)
     boto3_client = boto3_session.client("s3")
+    # for file in files:
+    #     upload_s3(file, output, location, boto3_client, **uploader_kwargs)
 
     max_workers = min((concurrency or 1), len(files))
     with ThreadPoolExecutor(max_workers=max_workers) as ex:
@@ -152,7 +158,7 @@ def cli():
 @click.option("--s3_aws_session_token")
 @click.option("--s3_region_name")
 @click.option("--s3_bucket")
-@click.option("--s3_base_location")
+@click.option("--s3_base_key")
 @click.option("--s3_ACL", default="private")
 @click.option("--s3_cloudfront_domain")
 @click.option("--s3_cache_control", default="public, max-age=31536000")

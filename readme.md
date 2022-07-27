@@ -12,7 +12,7 @@ md_tools rel_to_abs . --pattern "*.md" -o "{filename}.abs.md" --location None -x
 # -v verbosity
 
 # s3_bucket
-# s3_base_location
+# s3_base_key: base key for the image, replacement variables are: {filename}, {parent_0}, {random_hex}
 # s3_ACL
 # s3_cloudfront_domain
 # s3_cache_control
