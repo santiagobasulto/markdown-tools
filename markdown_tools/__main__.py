@@ -1,3 +1,4 @@
+from requests import session
 import boto3
 import click
 from pathlib import Path
@@ -21,34 +22,49 @@ def upload_s3(file, output, location, boto3_client, **uploader_kwargs):
         absolute_path = location_path / abs_output
 
     result = upload_relative_images(
-        file, absolute_path, 's3', override=uploader_kwargs['s3_override'], **{
-            "s3_bucket": uploader_kwargs['s3_bucket'],
-            "s3_relative_path": uploader_kwargs['s3_base_location'],
-            "s3_ACL": uploader_kwargs.get('s3_acl'),
-            "s3_cloudfront_domain": uploader_kwargs.get('s3_cloudfront_domain'),
-            "s3_cache_control": uploader_kwargs.get('s3_cache_control'),
-        })
+        file,
+        absolute_path,
+        "s3",
+        override=uploader_kwargs["s3_override"],
+        **{
+            "s3_client": boto3_client,
+            "s3_bucket": uploader_kwargs["s3_bucket"],
+            "s3_relative_path": uploader_kwargs["s3_base_location"],
+            "s3_ACL": uploader_kwargs.get("s3_acl"),
+            "s3_cloudfront_domain": uploader_kwargs.get("s3_cloudfront_domain"),
+            "s3_cache_control": uploader_kwargs.get("s3_cache_control"),
+        },
+    )
     return result
 
 
 def process_s3(files, output, location, concurrency, verbose, **uploader_kwargs):
     # Required params
     required_params = ["s3_bucket", "s3_base_location"]
-    assert all([
-        uploader_kwargs.get(param) for param in required_params
-    ])
-    boto3_session = boto3.Session(
-        #profile_name=uploader_kwargs["s3_credentials_profile"],
-        region_name=uploader_kwargs.get("s3_region_name"))
-    boto3_client = boto3_session.client('s3')
+    assert all([uploader_kwargs.get(param) for param in required_params])
 
-    # for file in files:
-    #     upload_s3(file, output, location, boto3_client, **uploader_kwargs)
+    optional_credential_kwargs = {
+        "s3_profile_name",
+        "s3_aws_access_key_id",
+        "s3_aws_secret_access_key",
+        "s3_aws_session_token",
+        "s3_region_name",
+    }
+    session_kwargs = {
+        optional_kwarg.replace("s3_", ""): uploader_kwargs.get(optional_kwarg)
+        for optional_kwarg in optional_credential_kwargs
+        if optional_kwarg in uploader_kwargs
+    }
+
+    boto3_session = boto3.Session(**session_kwargs)
+    boto3_client = boto3_session.client("s3")
 
     max_workers = min((concurrency or 1), len(files))
     with ThreadPoolExecutor(max_workers=max_workers) as ex:
         futures = {
-            ex.submit(upload_s3, file, output, location, boto3_client, **uploader_kwargs): file
+            ex.submit(
+                upload_s3, file, output, location, boto3_client, **uploader_kwargs
+            ): file
             for file in files
         }
         success = []
@@ -130,16 +146,27 @@ def cli():
     help="The uploader to use: S3|Imgur (case insensitve)",
 )
 @click.option("-v", "--verbose", count=True)
-@click.option("--s3_credentials_profile")
+@click.option("--s3_profile_name")
+@click.option("--s3_aws_access_key_id")
+@click.option("--s3_aws_secret_access_key")
+@click.option("--s3_aws_session_token")
 @click.option("--s3_region_name")
 @click.option("--s3_bucket")
 @click.option("--s3_base_location")
-@click.option("--s3_ACL", default='private')
+@click.option("--s3_ACL", default="private")
 @click.option("--s3_cloudfront_domain")
-@click.option("--s3_cache_control", default='public, max-age=31536000')
+@click.option("--s3_cache_control", default="public, max-age=31536000")
 @click.option("--s3_override", type=bool, default=False)
 def rel_to_abs(
-    path, pattern, exclude, output, location, concurrency, uploader, verbose, **uploader_kwargs
+    path,
+    pattern,
+    exclude,
+    output,
+    location,
+    concurrency,
+    uploader,
+    verbose,
+    **uploader_kwargs,
 ):
     path = Path(path)
     files = [path]
