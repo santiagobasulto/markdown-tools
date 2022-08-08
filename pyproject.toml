@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "markdown_tools"
+name = "advanced-markdown-tools"
 version = "0.1.0"
 description = ""
 authors = ["Santiago Basulto <santiago.basulto@gmail.com>"]

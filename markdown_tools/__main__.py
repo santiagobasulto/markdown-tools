@@ -20,9 +20,11 @@ def upload_s3(file, output, location, boto3_client, **uploader_kwargs):
         assert location_path.exists()
         absolute_path = location_path / abs_output
 
+    parent = file.resolve().parent
+    parent_0 = parent.relative_to(parent.parent)
     s3_base_key = uploader_kwargs["s3_base_key"].format(
         filename=file.stem,
-        parent_0=file.resolve().parents[0].stem,
+        parent_0=parent_0,
         random_hex=str(uuid.uuid4()).split("-")[0])
 
     result = upload_relative_images(
