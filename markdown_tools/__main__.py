@@ -1,3 +1,4 @@
+import sys, os
 import uuid
 import threading
 from pathlib import Path
@@ -27,11 +28,14 @@ def upload_s3(file, output, location, boto3_client, **uploader_kwargs):
         parent_0=parent_0,
         random_hex=str(uuid.uuid4()).split("-")[0])
 
+    full_path = os.path.abspath(os.path.dirname(sys.argv[0]))
+
     result = upload_relative_images(
         file,
         absolute_path,
         "s3",
         override=uploader_kwargs["s3_override"],
+        secure_directory_fence=full_path,
         **{
             "s3_client": boto3_client,
             "s3_bucket": uploader_kwargs["s3_bucket"],
@@ -39,6 +43,7 @@ def upload_s3(file, output, location, boto3_client, **uploader_kwargs):
             "s3_ACL": uploader_kwargs.get("s3_acl"),
             "s3_cloudfront_domain": uploader_kwargs.get("s3_cloudfront_domain"),
             "s3_cache_control": uploader_kwargs.get("s3_cache_control"),
+
         },
     )
     return result
@@ -88,14 +93,22 @@ def process_s3(files, output, location, concurrency, verbose, **uploader_kwargs)
                     print(f"SUCCESS: {location}")
                     success.append(f)
 
-        print("\n\n")
-        print("Successful jobs:")
+        missing_images_jobs = []
         for future in success:
             location = futures[future]
-            print(f"\t{location}")
-        else:
-            print("\t-")
+            image_results, missing_images = future.result()
+            if missing_images:
+                missing_images_jobs.append((location, missing_images))
 
+        if missing_images_jobs:
+            print("\n\nMissing images:")
+            for location, missing_images in missing_images_jobs:
+                print(f"{location}:")
+                for missing_image in missing_images:
+                    print(f"\t{missing_image}")
+
+        if not error:
+            return
         print("-" * 30)
         print("Errored jobs:")
         for future in error:

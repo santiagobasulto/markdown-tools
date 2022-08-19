@@ -1,6 +1,7 @@
 import re
 import mimetypes
 import hashlib
+from site import abs_paths
 import threading
 from pathlib import Path
 import urllib.parse
@@ -99,7 +100,15 @@ UPLOADERS = {
     'imgur': ImgurUploader
 }
 
-def upload_relative_images(original_path, output_path, uploader, override=False, **uploader_kwargs):
+def is_relative_to(path, other):
+    try:
+        path.relative_to(other)
+        return True
+    except ValueError:
+        return False
+
+
+def upload_relative_images(original_path, output_path, uploader, override=False, secure_directory_fence=None, **uploader_kwargs):
     """Reads a markdown file, finds all the images and uploads them using `uploader`.
     The result is a new file under `output_path`. Provide specific parameters
     for the uploader with `uploader_kwargs`.
@@ -131,24 +140,29 @@ def upload_relative_images(original_path, output_path, uploader, override=False,
         content = fp.read()
         image_relative_paths = {url for url in pattern.findall(content) if is_relative(url)}
 
+    abs_image_paths = [(image_relative, (base_path / urllib.parse.unquote(image_relative)).resolve()) for image_relative in image_relative_paths]
     image_mapping = {
-        image_relative: (base_path / urllib.parse.unquote(image_relative)) for image_relative in image_relative_paths
+        image_relative: (abs_path, abs_path.exists())
+        for image_relative, abs_path in abs_image_paths
     }
-    missing_images = [str(abs_path) for _, abs_path in image_mapping.items() if not abs_path.exists()]
-    if missing_images:
-        raise ValueError(f'Missing images: {",".join(missing_images)}')
+    print(f"Fence: {secure_directory_fence}")
 
     image_results = {
         relative_path: uploader.upload_image(abs_path, override)
-        for relative_path, abs_path in image_mapping.items()
+        for relative_path, (abs_path, exists) in image_mapping.items()
+        if is_relative_to(abs_path, secure_directory_fence) and exists
     }
+    missing_images = [
+        relative_path for relative_path, (abs_path, exists) in image_mapping.items()
+        if not exists
+    ]
 
     for relative_path, upload_path in image_results.items():
         content = content.replace(relative_path, upload_path)
     with open(output_path, 'w') as fp:
         fp.write(content)
 
-    return image_results
+    return image_results, missing_images
 
 
 CMD_REQUIRED_ARGUMENTS = {
