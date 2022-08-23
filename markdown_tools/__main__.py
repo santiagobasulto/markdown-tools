@@ -120,6 +120,7 @@ UPLOADERS = {"s3": process_s3, "imgur": None}
 
 
 @click.group()
+@click.version_option()
 def cli():
     pass
 
