@@ -150,7 +150,8 @@ def upload_relative_images(original_path, output_path, uploader, override=False,
     image_results = {
         relative_path: uploader.upload_image(abs_path, override)
         for relative_path, (abs_path, exists) in image_mapping.items()
-        if is_relative_to(abs_path, secure_directory_fence) and exists
+        # if is_relative_to(abs_path, secure_directory_fence) and exists
+        if exists
     }
     missing_images = [
         relative_path for relative_path, (abs_path, exists) in image_mapping.items()
