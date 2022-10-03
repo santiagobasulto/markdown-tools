@@ -21,6 +21,9 @@ def upload_s3(file, output, location, boto3_client, **uploader_kwargs):
         assert location_path.exists()
         absolute_path = location_path / abs_output
 
+    if absolute_path.exists():
+        return None
+        # return ({}, [])
     parent = file.resolve().parent
     parent_0 = parent.relative_to(parent.parent)
     s3_base_key = uploader_kwargs["s3_base_key"].format(
@@ -90,15 +93,19 @@ def process_s3(files, output, location, concurrency, verbose, **uploader_kwargs)
                     print(repr(f.exception()))
                     error.append(f)
                 else:
-                    print(f"SUCCESS: {location}")
                     success.append(f)
 
         missing_images_jobs = []
         for future in success:
             location = futures[future]
-            image_results, missing_images = future.result()
-            if missing_images:
-                missing_images_jobs.append((location, missing_images))
+            result = future.result()
+            if result is None:
+                print(f"CACHED: {location}")
+            else:
+                print(f"SUCCESS: {location}")
+                image_results, missing_images = result
+                if missing_images:
+                    missing_images_jobs.append((location, missing_images))
 
         if missing_images_jobs:
             print("\n\nMissing images:")
@@ -120,7 +127,7 @@ UPLOADERS = {"s3": process_s3, "imgur": None}
 
 
 @click.group()
-@click.version_option()
+@click.version_option('0.1.5')
 def cli():
     pass
 
