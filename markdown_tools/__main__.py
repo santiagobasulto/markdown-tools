@@ -26,9 +26,11 @@ def upload_s3(file, output, location, boto3_client, **uploader_kwargs):
         # return ({}, [])
     parent = file.resolve().parent
     parent_0 = parent.relative_to(parent.parent)
+    parent_1 = parent.parent.relative_to(parent.parent.parent)
     s3_base_key = uploader_kwargs["s3_base_key"].format(
         filename=file.stem,
         parent_0=parent_0,
+        parent_1=parent_1,
         random_hex=str(uuid.uuid4()).split("-")[0])
 
     full_path = os.path.abspath(os.path.dirname(sys.argv[0]))

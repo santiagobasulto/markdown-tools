@@ -145,7 +145,7 @@ def upload_relative_images(original_path, output_path, uploader, override=False,
         image_relative: (abs_path, abs_path.exists())
         for image_relative, abs_path in abs_image_paths
     }
-    print(f"Fence: {secure_directory_fence}")
+    # print(f"Fence: {secure_directory_fence}")
 
     image_results = {
         relative_path: uploader.upload_image(abs_path, override)
