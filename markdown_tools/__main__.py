@@ -7,6 +7,8 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import boto3
 import click
 
+from . import VERSION
+
 from .uploaders import upload_relative_images
 
 PRINT_LOCK = threading.Lock()
@@ -129,7 +131,7 @@ UPLOADERS = {"s3": process_s3, "imgur": None}
 
 
 @click.group()
-@click.version_option('0.1.5')
+@click.version_option(VERSION)
 def cli():
     pass
 
