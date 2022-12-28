@@ -1,3 +1,9 @@
+Installation:
+
+```bash
+$ pip install advanced-markdown-tools
+```
+
 API:
 
 ```
@@ -17,10 +23,4 @@ md_tools rel_to_abs . --pattern "*.md" -o "{filename}.abs.md" --location None -x
 # s3_cloudfront_domain
 # s3_cache_control
 # override
-```
-
-Future:
-
-```bash
-$ md_tools rel-to-abs . --pattern "*.md" -o "
 ```
